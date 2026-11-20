@@ -17,7 +17,7 @@ const results = [];
 const check = (name, ok, detail = "") => results.push({ name, ok: !!ok, detail: String(detail).slice(0, 400) });
 const G = createRequire(import.meta.url)(path.join(root, "data.js"));
 
-const PINS = "tenjo:2:4.1,shiro:1:4.1,hose:2:4.2.1,mokuzai:0:0:1.3.5,honoo:1:2.1.0,gasorin:1:4:2.6.5,tomaru:0:2.4.3,aka25:0:3.2.0;anzen:2:3.2,kami:0:2:1.3,toyu:3:6:0.3.4,mokuzai:1:2:1.3.5,kazakami:1:4.3.1,nozzle:1:4.2.3,tomaru:2:0.2.4,bdef:1:2.3.4;shiro:1:4.1,tenpura:1:1:4.3,mokuzai:1:6:3.1.5,haiden:1:5:1.2.0,honoo:1:1.4.2,aka25:2:1.3.0,gasorin:1:3:5.1.6,denkirei:0:2.0.3"; // 過去の日の問題の印（変わったら過去の日の問題が変わった印。種類・言い方は足すだけでも変わる）
+const PINS = "tenjo:2:4.1:1eeor6k,shiro:1:4.1:7e5gxd,hose:2:4.2.1:1f0dfns,mokuzai:0:0:1.3.5:ajsls4,honoo:1:2.1.0:36sk73,gasorin:1:4:2.6.5:ixokbf,tomaru:0:2.4.3:zpdv3y,aka25:0:3.2.0:1cr4ni4;anzen:2:3.2:1r1mr18,kami:0:2:1.3:1yuftlp,toyu:3:6:0.3.4:27olj9,mokuzai:1:2:1.3.5:d5o1ih,kazakami:1:4.3.1:3qwy2z,nozzle:1:4.2.3:utg3yg,tomaru:2:0.2.4:yya14o,bdef:1:2.3.4:kxztnh;shiro:1:4.1:7e5gxd,tenpura:1:1:4.3:7op5ic,mokuzai:1:6:3.1.5:gsy82t,haiden:1:5:1.2.0:8a31rf,honoo:1:1.4.2:1o2dk2y,aka25:2:1.3.0:1xjaj0h,gasorin:1:3:5.1.6:1ejlz08,denkirei:0:2.0.3:1fb9hgj"; // 過去の日の問題の印（変わったら過去の日の問題が変わった印。種類・言い方は足すだけでも変わる）
 // ---- 1. 問題の作り方（ブラウザを使わない）----
 // 省令と資料の区分（ゲームとは別に書いた表。data.js の答えがこれと合うかを見る）
 // 出典：消火器の技術上の規格を定める省令 第38条第4項 https://laws.e-gov.go.jp/law/339M50000008027 （2026-11-20 に読んだ）
@@ -101,7 +101,8 @@ const has = (opt, g) => opt.split("・").includes(WORD[g]);
   check("2か月のうちに30種類が全部出る・前の日と同じ組の日が少ない", cover.size === 30 && sameAsPrev < 20, `${cover.size}種類・前の日と同じ ${sameAsPrev}日`);
   // 過去の日の問題が変わらない（data.js を直したときの見張り。値は 2026-11-20 に作ったもの）
   // 1問目だけでなく、いくつかの日の5問と上級3問の全部（種類と言い方・選び肢の印）を見る（種類や言い方を足すと、全部の日の問題が変わるため。shigaisen-yomi #1 の CodeRabbit）
-  const snap = ["2026-11-18", "2026-11-20", "2027-01-01"].map((d) => [...G.dailyTags(d), ...G.hardTags(d)].map((t) => { const P = G.make(t); return `${P.kind}:${P.v}`; }).join(",")).join(";");
+  // 印には、出す問題の文・選び肢の並び・答えの指紋も入れる（同じ位置の言い回しを書きかえても見つける。shokaki-yomi #1 の CodeRabbit）
+  const snap = ["2026-11-18", "2026-11-20", "2027-01-01"].map((d) => [...G.dailyTags(d), ...G.hardTags(d)].map((t) => { const P = G.make(t); return `${P.kind}:${P.v}:${G.seedOf([P.q, ...P.opts, P.ans].join("|")).toString(36)}`; }).join(",")).join(";");
   check("過去の日（2026-11-18・11-20・2027-01-01）の5問と上級3問が作ったときのまま（種類・言い方を足す・並べ替える・消すと変わる）", snap === PINS, snap);
 }
 
@@ -466,7 +467,8 @@ try {
     await solve(q); await q.click("#next"); await q.waitForTimeout(150);
     const after = await mem(q), dp2 = await q.evaluate(() => JSON.parse(localStorage.getItem("skyo-depth")));
     check("復習を終えると結果は「復習」・今日の記録は増えない・シェアは出ない", (await q.textContent("h1")).includes("復習") && JSON.stringify(after.days) === JSON.stringify(before.days) && await q.locator("#share").count() === 0);
-    check("復習で一度で正解すると、次は3日後へ進む", Object.values(dp2.rv).every((x) => x.s === 1 && x.due > TODAY));
+    { const e = dp2.rv && dp2.rv["toyu|dp1"], d3 = new Date(Date.parse(TODAY) + 3 * 864e5).toISOString().slice(0, 10); // 同じ問題が残り、段が1で、ちょうど3日後（shokaki-yomi #1 の CodeRabbit）
+      check("復習で一度で正解すると、同じ問題が次は3日後へ進む", !!e && e.s === 1 && e.due === d3 && Object.keys(dp2.rv).length === 1, JSON.stringify(dp2.rv)); }
     await q.goto(url); await q.waitForTimeout(150);
     check("復習を終えたら、ホームの「復習」は消える", await q.locator("#go-r").count() === 0);
     await q.evaluate(() => { const d = JSON.parse(localStorage.getItem("skyo-depth")); d.rv["nai|1"] = { s: 0, due: "2026-01-01", t: 1 }; d.rv["constructor|x"] = { s: 0, due: "2026-01-01", t: 2 }; localStorage.setItem("skyo-depth", JSON.stringify(d)); });
@@ -528,9 +530,12 @@ try {
     const q = await newPage(); await closeHow(q);
     await q.focus("#go-d"); await q.keyboard.press("Enter"); await q.waitForTimeout(100);
     const j = await ansIdx(q);
-    await q.focus(`.ch[data-j="${j}"]`); await q.keyboard.press("Enter"); await q.waitForTimeout(100);
-    if (await q.locator(".why button").count()) { await q.focus(`.why button[data-g="${await q.evaluate(() => __nm.cur().P.grp)}"]`); await q.keyboard.press("Enter"); await q.waitForTimeout(100); }
-    check("キーボードだけで選んで答えられる（2段目もキーボードで）", await q.locator(".verdict").count() === 1);
+    // focus() で直接動かさず、Tab を押して答えの行と2段目の目安に届くかを見る（Tab の順から外れても通らないように。shokaki-yomi #1 の CodeRabbit）
+    const tabTo = async (sel) => { for (let n = 0; n < 60; n++) { await q.keyboard.press("Tab"); if (await q.evaluate((x) => !!document.activeElement && document.activeElement.matches(x), sel)) return true; } return false; };
+    const t1 = await tabTo(`.ch[data-j="${j}"]`); if (t1) { await q.keyboard.press("Enter"); await q.waitForTimeout(100); }
+    let t2 = true;
+    if (await q.locator(".why button").count()) { t2 = await tabTo(`.why button[data-g="${await q.evaluate(() => __nm.cur().P.grp)}"]`); if (t2) { await q.keyboard.press("Enter"); await q.waitForTimeout(100); } }
+    check("キーボードだけ（Tab と Enter）で選んで答えられる（2段目もキーボードで）", t1 && t2 && await q.locator(".verdict").count() === 1, `${t1},${t2}`);
     await q.context().close();
   }
 } catch (e) { check("ブラウザでの検査が最後まで動く", false, e.stack.split("\n").slice(0, 3).join(" ")); }
@@ -562,6 +567,20 @@ try {
   await q.close(); }
 { const bad = G.KINDS.filter((k) => { for (let i = 0; i < 200; i++) { const P = G.make(`${k.id}|g${i}`); if (SCENE[k.id] ? !G.GROUPS[P.grp] : P.grp) return true; } return false; }).map((k) => k.id), used = new Set(G.KINDS.map((k) => k.grp).filter(Boolean));
   check("2段目「どの火災？」：場面の問題はどれも3つ（普通火災・油火災・電気火災）のどれかで、3つとも使う。表示・使い方の問題には2段目が無い", bad.length === 0 && Object.keys(G.GROUPS).join() === "futsu,abura,denki" && used.size === 3, bad.join(",")); }
+// shokaki-yomi #1 の CodeRabbit：文字の大きさの保存に失敗しても、選ばれた印は画面の大きさとそろう・別のタブで2段目へ進んだ古い1段目の答えは数えない
+try {
+  const q = await newPage(); await closeHow(q);
+  await q.evaluate(() => { const o = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (k === "skyo-fs") throw new Error("full"); return o.call(this, k, v); }; });
+  await q.click('.fsrow button[data-fs="3"]'); await q.waitForTimeout(100);
+  check("文字の大きさを保存できなくても、押した大きさが選ばれた印になる（画面の文字とそろう）", (await q.getAttribute('.fsrow button[data-fs="3"]', "aria-pressed")) === "true" && (await q.getAttribute('.fsrow button[data-fs="2"]', "aria-pressed")) === "false" && await q.evaluate(() => document.documentElement.classList.contains("fs3")));
+  await q.evaluate(() => __nm.save((s) => { s.runs.p = { mode: "p", date: __nm.todayKey(), list: ["toyu|st1", "kami|st1"], res: [], cur: null, id: "st" }; }));
+  await q.evaluate(() => __nm.play("p")); await q.waitForTimeout(100);
+  await q.evaluate(() => __nm.save((s) => { s.runs.p.cur = { i: 0, tag: "toyu|st1", wrong: [], hints: 0, step: 2, w2: [] }; })); // 別のタブが1段目を当てて2段目へ
+  await q.click(`.ch[data-j="${await wrongIdx(q)}"]`); await q.waitForTimeout(150);
+  const st = await q.evaluate(() => __nm.load().runs.p.cur);
+  check("別のタブで2段目へ進んでいたら、古い画面の1段目のまちがいは数えず、2段目を出す", st && st.wrong.length === 0 && st.step === 2 && await q.locator(".why button").count() === 3, JSON.stringify(st));
+  await q.close();
+} catch (e) { check("文字の大きさ・古いタブの検査が最後まで動く", false, e.message.split("\n")[0]); }
 // 引き継ぎコード（shared-workflows template/qa/transfer-check.mjs）
 try {
   const sample = { "skyo-v1": JSON.stringify({ v: 1, tut: true, days: { "2026-11-13": { m: [0, 1, 0, 0, 2], k: ["toyu", "kami", "mokuzai", "haiden", "kigu"] } }, hdays: {}, adays: {}, dex: { toyu: 1, tenpura: 1, nuno: 1, mokuzai: 1, gasorin: 1 }, runs: {}, kofi: {}, ach: {}, ebest: 7, t: 1 }), "skyo-fs": "3", "skyo-depth": JSON.stringify({ v: 1, rv: { "toyu|x1": { s: 1, due: "2026-11-20", t: 5 } } }) }; // 復習の記録も引き継ぐかを見る（CodeRabbit shindo-yomi#1）

@@ -486,8 +486,10 @@ const G = window.SKYO, LV = G.LV;
 Depth.setValid((t) => { if (!Object.prototype.hasOwnProperty.call(G.BY, String(t).split("|")[0])) return false; G.make(t); return true; }); // 作り直せない鍵（引き継ぎ・消えた種類）は復習に数えない
 
 // ---- 文字の大きさ（この端末だけ。記録とは別に置く。はじめは「大きい」）----
-function fsGet() { try { const v = +localStorage.getItem(FSKEY); return v >= 1 && v <= 3 ? v : 2; } catch (e) { return 2; } }
-function fsSet(v) { try { localStorage.setItem(FSKEY, String(v)); } catch (e) {} document.documentElement.classList.remove("fs1", "fs2", "fs3"); document.documentElement.classList.add("fs" + v); }
+// 開いているあいだは、最後に選んだ大きさを使う（保存に失敗しても、ボタンの選ばれた印と画面の文字をそろえる。shokaki-yomi #1 の CodeRabbit）
+let FSNOW = 0;
+function fsGet() { if (FSNOW) return FSNOW; try { const v = +localStorage.getItem(FSKEY); return v >= 1 && v <= 3 ? v : 2; } catch (e) { return 2; } }
+function fsSet(v) { FSNOW = v; try { localStorage.setItem(FSKEY, String(v)); } catch (e) {} document.documentElement.classList.remove("fs1", "fs2", "fs3"); document.documentElement.classList.add("fs" + v); }
 document.documentElement.classList.remove("fs1", "fs2", "fs3"); document.documentElement.classList.add("fs" + fsGet());
 
 // ---- 日付（日本時間。だれでも同じ5問）----
@@ -805,8 +807,10 @@ function chooseWhy(x) {
 function sureCount(ok) { const q = cur.i + ":" + cur.tag; save((s) => { const r = s.runs[MODE]; if (!same(r) || r.dsq === q) return; r.dsq = q; r.ds = r.ds || { n: 0, ok: 0 }; r.ds.n++; if (ok) r.ds.ok++; }); }
 function choose(j) {
   if (cur.done || cur.step === 2) return;
-  const t = cur.P.opts[j];
-  if (!same(load().runs[MODE])) { toast("別の画面で先に進んでいます"); return play(); }
+  const t = cur.P.opts[j], r0 = load().runs[MODE];
+  if (!same(r0)) { toast("別の画面で先に進んでいます"); return play(); }
+  // 別のタブでこの問題の2段目へ進んでいたら、古い1段目の答えは数えずに描き直す（shokaki-yomi #1 の CodeRabbit）
+  if (r0.cur && r0.cur.i === cur.i && r0.cur.tag === cur.tag && r0.cur.step === 2) { toast("別の画面で先に進んでいます"); return play(); }
   if (t !== cur.P.ans) {
     if (cur.wrong.includes(t)) return;
     buzz(40);
@@ -823,7 +827,10 @@ function choose(j) {
 function solved() {
   cur.done = true; buzz([10, 40, 10]);
   const P = cur.P;
-  const s = save((s) => { const r = s.runs[MODE]; if (!same(r)) return; const was = r.cur && r.cur.i === cur.i && r.cur.tag === cur.tag ? r.cur : null; if (was) { cur.hints = Math.max(cur.hints, was.hints || 0); for (const w of was.wrong || []) if (!cur.wrong.includes(w)) cur.wrong.push(w); for (const w of was.w2 || []) if (G.GROUPS[w] && !cur.w2.includes(w)) cur.w2.push(w); } r.res.push({ m: missOf() }); r.cur = null; s.dex[P.kind] = (s.dex[P.kind] || 0) + 1; }); // 別のタブで使ったヒント・まちがいも合わせてから数える
+  let took = false; // この画面の答えを記録に入れたか（別のタブが先に解いていたら入れない）
+  const s = save((s) => { const r = s.runs[MODE]; if (!same(r)) return; took = true; const was = r.cur && r.cur.i === cur.i && r.cur.tag === cur.tag ? r.cur : null; if (was) { cur.hints = Math.max(cur.hints, was.hints || 0); for (const w of was.wrong || []) if (!cur.wrong.includes(w)) cur.wrong.push(w); for (const w of was.w2 || []) if (G.GROUPS[w] && !cur.w2.includes(w)) cur.w2.push(w); } r.res.push({ m: missOf() }); r.cur = null; s.dex[P.kind] = (s.dex[P.kind] || 0) + 1; }); // 別のタブで使ったヒント・まちがいも合わせてから数える
+  // 記録に入れなかった答えは、復習の予定も変えずに、いまの画面を描き直す（別のタブが進めた復習を戻さない。shokaki-yomi #1 の CodeRabbit）
+  if (!took) { toast("別の画面で先に進んでいます"); return play(); }
   const m = missOf(), st = starsOf(m);
   Depth.mark(cur.tag, m, P.name); // まちがい・ヒントがあれば復習へ、復習中なら次の間へ
   const r = s.runs[MODE], fin = r && r.mode !== "e" && r.res.length >= r.list.length;
