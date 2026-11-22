@@ -15,7 +15,7 @@ import { checkDepth } from "./depth-check.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const results = [];
 const check = (name, ok, detail = "") => results.push({ name, ok: !!ok, detail: String(detail).slice(0, 400) });
-const firstClose = async (q) => { if (await q.locator("#howto[open]").count()) await q.click("#howto-ok"); if (await q.locator("#core-coach").count()) { await q.evaluate(() => Core.coach.leave()); await q.waitForTimeout(100); } }; // はじめての練習の吹き出しをやめてホームへ（sync-template の migrateFirstQa が足した）
+const firstClose = async (q) => { if (await q.locator("#howto[open]").count()) await q.click("#howto-ok"); if (await q.evaluate(() => !!(window.Core && Core.coach && Core.coach.active()))) { await q.evaluate(() => { Core.coach.leave(); scrollTo(0, 0); }); await q.waitForTimeout(100); } }; // はじめての練習の吹き出しをやめてホームへ（sync-template の migrateFirstQa が足した）
 const G = createRequire(import.meta.url)(path.join(root, "data.js"));
 
 const PINS = "tenjo:2:4.1:1eeor6k,shiro:1:4.1:7e5gxd,hose:2:4.2.1:1f0dfns,mokuzai:0:0:1.3.5:ajsls4,honoo:1:2.1.0:36sk73,gasorin:1:4:2.6.5:ixokbf,tomaru:0:2.4.3:zpdv3y,aka25:0:3.2.0:1cr4ni4;anzen:2:3.2:1r1mr18,kami:0:2:1.3:1yuftlp,toyu:3:6:0.3.4:27olj9,mokuzai:1:2:1.3.5:d5o1ih,kazakami:1:4.3.1:3qwy2z,nozzle:1:4.2.3:utg3yg,tomaru:2:0.2.4:yya14o,bdef:1:2.3.4:kxztnh;shiro:1:4.1:7e5gxd,tenpura:1:1:4.3:7op5ic,mokuzai:1:6:3.1.5:gsy82t,haiden:1:5:1.2.0:8a31rf,honoo:1:1.4.2:1o2dk2y,aka25:2:1.3.0:1xjaj0h,gasorin:1:3:5.1.6:1ejlz08,denkirei:0:2.0.3:1fb9hgj"; // 過去の日の問題の印（変わったら過去の日の問題が変わった印。種類・言い方は足すだけでも変わる）
