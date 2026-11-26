@@ -573,7 +573,7 @@ try {
   const q = await newPage(); await closeHow(q);
   await q.evaluate(() => { const o = Storage.prototype.setItem; Storage.prototype.setItem = function (k, v) { if (k === "skyo-fs") throw new Error("full"); return o.call(this, k, v); }; });
   await q.click('.fsrow button[data-fs="3"]'); await q.waitForTimeout(100);
-  check("文字の大きさを保存できなくても、押した大きさが選ばれた印になる（画面の文字とそろう）", (await q.getAttribute('.fsrow button[data-fs="3"]', "aria-pressed")) === "true" && (await q.getAttribute('.fsrow button[data-fs="2"]', "aria-pressed")) === "false" && await q.evaluate(() => document.documentElement.classList.contains("fs3")));
+  check("文字の大きさを保存できなくても、押した大きさが選ばれた印になる（画面の文字とそろう）", (await q.getAttribute('.fsrow button[data-fs="3"]', "aria-pressed")) === "true" && (await q.getAttribute('.fsrow button[data-fs="2"]', "aria-pressed")) === "false" && await q.evaluate(() => document.documentElement.classList.contains("a11y-fs3")));
   await q.evaluate(() => __nm.save((s) => { s.runs.p = { mode: "p", date: __nm.todayKey(), list: ["toyu|st1", "kami|st1"], res: [], cur: null, id: "st" }; }));
   await q.evaluate(() => __nm.play("p")); await q.waitForTimeout(100);
   await q.evaluate(() => __nm.save((s) => { s.runs.p.cur = { i: 0, tag: "toyu|st1", wrong: [], hints: 0, step: 2, w2: [] }; })); // 別のタブが1段目を当てて2段目へ
